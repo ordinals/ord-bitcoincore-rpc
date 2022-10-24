@@ -654,7 +654,7 @@ pub enum GetTransactionResultDetailCategory {
     Orphan,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Deserialize, Serialize)]
 pub struct GetTransactionResultDetail {
     pub address: Option<Address>,
     pub category: GetTransactionResultDetailCategory,
@@ -667,7 +667,7 @@ pub struct GetTransactionResultDetail {
     pub abandoned: Option<bool>,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Deserialize, Serialize)]
 pub struct WalletTxInfo {
     pub confirmations: i32,
     pub blockhash: Option<bitcoin::BlockHash>,
@@ -684,7 +684,7 @@ pub struct WalletTxInfo {
     pub wallet_conflicts: Vec<bitcoin::Txid>,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Deserialize, Serialize)]
 pub struct GetTransactionResult {
     #[serde(flatten)]
     pub info: WalletTxInfo,
@@ -1770,7 +1770,7 @@ impl serde::Serialize for SigHashType {
 }
 
 // Used for createrawtransaction argument.
-#[derive(Serialize, Clone, PartialEq, Eq, Debug)]
+#[derive(Serialize, Clone, PartialEq, Eq, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateRawTransactionInput {
     pub txid: bitcoin::Txid,
@@ -1822,7 +1822,7 @@ pub struct FundRawTransactionResult {
     pub change_position: i32,
 }
 
-#[derive(Deserialize, Clone, PartialEq, Eq, Debug)]
+#[derive(Deserialize, Serialize, Clone, PartialEq, Eq, Debug)]
 pub struct GetBalancesResultEntry {
     #[serde(with = "bitcoin::util::amount::serde::as_btc")]
     pub trusted: Amount,
@@ -1832,7 +1832,7 @@ pub struct GetBalancesResultEntry {
     pub immature: Amount,
 }
 
-#[derive(Deserialize, Clone, PartialEq, Eq, Debug)]
+#[derive(Deserialize, Serialize, Clone, PartialEq, Eq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct GetBalancesResult {
     pub mine: GetBalancesResultEntry,
