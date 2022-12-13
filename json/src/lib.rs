@@ -708,7 +708,7 @@ impl GetTransactionResult {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Deserialize, Serialize)]
 pub struct ListTransactionResult {
     #[serde(flatten)]
     pub info: WalletTxInfo,
