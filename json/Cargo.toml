@@ -1,6 +1,6 @@
 [package]
 name = "ord-bitcoincore-rpc-json"
-version = "0.16.3"
+version = "0.16.4"
 authors = [
     "Steven Roose <steven@stevenroose.org>",
     "Jean Pierre Dudey <jeandudey@hotmail.com>",
