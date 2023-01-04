@@ -561,7 +561,12 @@ pub struct GetRawTransactionResultVoutScriptPubKey {
     pub req_sigs: Option<usize>,
     #[serde(rename = "type")]
     pub type_: Option<ScriptPubkeyType>,
-    pub addresses: Option<Vec<Address>>,
+    // Deprecated in Bitcoin Core 22
+    #[serde(default)]
+    pub addresses: Vec<Address>,
+    // Added in Bitcoin Core 22
+    #[serde(default)]
+    pub address: Option<Address>,
 }
 
 impl GetRawTransactionResultVoutScriptPubKey {
@@ -873,6 +878,8 @@ pub struct Bip9SoftforkInfo {
 pub enum SoftforkType {
     Buried,
     Bip9,
+    #[serde(other)]
+    Other,
 }
 
 /// Status of a softfork
@@ -1125,7 +1132,7 @@ impl<'a> serde::Serialize for ImportMultiRequestScriptPubkey<'a> {
 /// Note: unlike in bitcoind, `timestamp` defaults to 0.
 #[derive(Clone, PartialEq, Eq, Debug, Default, Serialize)]
 pub struct ImportMultiRequest<'a> {
-    pub timestamp: ImportMultiRescanSince,
+    pub timestamp: Timestamp,
     /// If using descriptor, do not also provide address/scriptPubKey, scripts, or pubkeys.
     #[serde(rename = "desc", skip_serializing_if = "Option::is_none")]
     pub descriptor: Option<&'a str>,
@@ -1158,24 +1165,24 @@ pub struct ImportMultiOptions {
 }
 
 #[derive(Clone, PartialEq, Eq, Copy, Debug)]
-pub enum ImportMultiRescanSince {
+pub enum Timestamp {
     Now,
-    Timestamp(u64),
+    Time(u64),
 }
 
-impl serde::Serialize for ImportMultiRescanSince {
+impl serde::Serialize for Timestamp {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
         match *self {
-            ImportMultiRescanSince::Now => serializer.serialize_str("now"),
-            ImportMultiRescanSince::Timestamp(timestamp) => serializer.serialize_u64(timestamp),
+            Timestamp::Now => serializer.serialize_str("now"),
+            Timestamp::Time(timestamp) => serializer.serialize_u64(timestamp),
         }
     }
 }
 
-impl<'de> serde::Deserialize<'de> for ImportMultiRescanSince {
+impl<'de> serde::Deserialize<'de> for Timestamp {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -1183,7 +1190,7 @@ impl<'de> serde::Deserialize<'de> for ImportMultiRescanSince {
         use serde::de;
         struct Visitor;
         impl<'de> de::Visitor<'de> for Visitor {
-            type Value = ImportMultiRescanSince;
+            type Value = Timestamp;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                 write!(formatter, "unix timestamp or 'now'")
@@ -1193,7 +1200,7 @@ impl<'de> serde::Deserialize<'de> for ImportMultiRescanSince {
             where
                 E: de::Error,
             {
-                Ok(ImportMultiRescanSince::Timestamp(value))
+                Ok(Timestamp::Time(value))
             }
 
             fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
@@ -1201,7 +1208,7 @@ impl<'de> serde::Deserialize<'de> for ImportMultiRescanSince {
                 E: de::Error,
             {
                 if value == "now" {
-                    Ok(ImportMultiRescanSince::Now)
+                    Ok(Timestamp::Now)
                 } else {
                     Err(de::Error::custom(format!(
                         "invalid str '{}', expecting 'now' or unix timestamp",
@@ -1214,21 +1221,21 @@ impl<'de> serde::Deserialize<'de> for ImportMultiRescanSince {
     }
 }
 
-impl Default for ImportMultiRescanSince {
+impl Default for Timestamp {
     fn default() -> Self {
-        ImportMultiRescanSince::Timestamp(0)
+        Timestamp::Time(0)
     }
 }
 
-impl From<u64> for ImportMultiRescanSince {
-    fn from(timestamp: u64) -> Self {
-        ImportMultiRescanSince::Timestamp(timestamp)
+impl From<u64> for Timestamp {
+    fn from(t: u64) -> Self {
+        Timestamp::Time(t)
     }
 }
 
-impl From<Option<u64>> for ImportMultiRescanSince {
+impl From<Option<u64>> for Timestamp {
     fn from(timestamp: Option<u64>) -> Self {
-        timestamp.map_or(ImportMultiRescanSince::Now, ImportMultiRescanSince::Timestamp)
+        timestamp.map_or(Timestamp::Now, Timestamp::Time)
     }
 }
 
@@ -1244,6 +1251,24 @@ pub struct ImportMultiResult {
     #[serde(default)]
     pub warnings: Vec<String>,
     pub error: Option<ImportMultiResultError>,
+}
+
+/// A import request for importdescriptors.
+#[derive(Clone, PartialEq, Eq, Debug, Default, Serialize)]
+pub struct ImportDescriptors<'a> {
+    #[serde(rename = "desc")]
+    pub descriptor: &'a str,
+    pub timestamp: Timestamp,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub active: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub range: Option<(usize, usize)>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_index: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub internal: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<&'a str>,
 }
 
 /// Progress toward rejecting pre-softfork blocks
@@ -1513,7 +1538,7 @@ pub struct GetBlockTemplateResult {
     pub capabilities: Vec<GetBlockTemplateResultCapabilities>,
     /// Set of pending, supported versionbit (BIP 9) softfork deployments
     #[serde(rename = "vbavailable")]
-    pub version_bits_available: HashMap<u32, String>,
+    pub version_bits_available: HashMap<String, u32>,
     /// Bit mask of versionbits the server requires set in submissions
     #[serde(rename = "vbrequired")]
     pub version_bits_required: u32,
@@ -1690,6 +1715,20 @@ pub struct FinalizePsbtResult {
     #[serde(default, with = "crate::serde_hex::opt")]
     pub hex: Option<Vec<u8>>,
     pub complete: bool,
+}
+
+/// Model for decode transaction
+#[derive(Clone, PartialEq, Eq, Debug, Deserialize, Serialize)]
+pub struct DecodeRawTransactionResult {
+    pub txid: bitcoin::Txid,
+    pub hash: bitcoin::Wtxid,
+    pub size: u32,
+    pub vsize: u32,
+    pub weight: u32,
+    pub version: u32,
+    pub locktime: u32,
+    pub vin: Vec<GetRawTransactionResultVin>,
+    pub vout: Vec<GetRawTransactionResultVout>,
 }
 
 /// Models the result of "getchaintips"
@@ -2072,4 +2111,19 @@ where
         res.push(FromHex::from_hex(&h).map_err(D::Error::custom)?);
     }
     Ok(Some(res))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_softfork_type() {
+        let buried: SoftforkType = serde_json::from_str("\"buried\"").unwrap();
+        assert_eq!(buried, SoftforkType::Buried);
+        let bip9: SoftforkType = serde_json::from_str("\"bip9\"").unwrap();
+        assert_eq!(bip9, SoftforkType::Bip9);
+        let other: SoftforkType = serde_json::from_str("\"bip8\"").unwrap();
+        assert_eq!(other, SoftforkType::Other);
+    }
 }

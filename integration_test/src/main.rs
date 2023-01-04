@@ -25,8 +25,8 @@ use bitcoin::hashes::hex::{FromHex, ToHex};
 use bitcoin::hashes::Hash;
 use bitcoin::secp256k1;
 use bitcoin::{
-    Address, Amount, PackedLockTime, Network, OutPoint, PrivateKey, Script, EcdsaSighashType, SignedAmount,
-    Sequence, Transaction, TxIn, TxOut, Txid, Witness,
+    Address, Amount, EcdsaSighashType, Network, OutPoint, PackedLockTime, PrivateKey, Script,
+    Sequence, SignedAmount, Transaction, TxIn, TxOut, Txid, Witness,
 };
 use bitcoincore_rpc::bitcoincore_rpc_json::{
     GetBlockTemplateModes, GetBlockTemplateRules, ScanTxOutRequest,
@@ -156,6 +156,7 @@ fn main() {
     test_get_connection_count(&cl);
     test_get_raw_transaction(&cl);
     test_get_raw_mempool(&cl);
+    test_get_raw_mempool_verbose(&cl);
     test_get_transaction(&cl);
     test_list_transactions(&cl);
     test_list_since_block(&cl);
@@ -168,11 +169,15 @@ fn main() {
     test_invalidate_block_reconsider_block(&cl);
     test_key_pool_refill(&cl);
     test_create_raw_transaction(&cl);
+    test_decode_raw_transaction(&cl);
     test_fund_raw_transaction(&cl);
     test_test_mempool_accept(&cl);
     test_wallet_create_funded_psbt(&cl);
     test_wallet_process_psbt(&cl);
+    test_join_psbt(&cl);
     test_combine_psbt(&cl);
+    test_combine_raw_transaction(&cl);
+    test_create_psbt(&cl);
     test_finalize_psbt(&cl);
     test_list_received_by_address(&cl);
     test_scantxoutset(&cl);
@@ -456,6 +461,14 @@ fn test_get_raw_mempool(cl: &Client) {
     let _ = cl.get_raw_mempool().unwrap();
 }
 
+fn test_get_raw_mempool_verbose(cl: &Client) {
+    cl.send_to_address(&RANDOM_ADDRESS, btc(1), None, None, None, None, None, None).unwrap();
+    let _ = cl.get_raw_mempool_verbose().unwrap();
+
+    // cleanup mempool transaction
+    cl.generate_to_address(2, &RANDOM_ADDRESS).unwrap();
+}
+
 fn test_get_transaction(cl: &Client) {
     let txid =
         cl.send_to_address(&RANDOM_ADDRESS, btc(1), None, None, None, None, None, None).unwrap();
@@ -634,6 +647,35 @@ fn test_create_raw_transaction(cl: &Client) {
     assert_eq!(hex, serialize(&tx).to_hex());
 }
 
+fn test_decode_raw_transaction(cl: &Client) {
+    let options = json::ListUnspentQueryOptions {
+        minimum_amount: Some(btc(2)),
+        ..Default::default()
+    };
+    let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
+    let unspent = unspent.into_iter().nth(0).unwrap();
+
+    let input = json::CreateRawTransactionInput {
+        txid: unspent.txid,
+        vout: unspent.vout,
+        sequence: None,
+    };
+    let mut output = HashMap::new();
+    output.insert(RANDOM_ADDRESS.to_string(), btc(1));
+
+    let tx =
+        cl.create_raw_transaction(&[input.clone()], &output, Some(500_000), Some(true)).unwrap();
+    let hex = cl.create_raw_transaction_hex(&[input], &output, Some(500_000), Some(true)).unwrap();
+
+    let decoded_transaction = cl.decode_raw_transaction(hex, None).unwrap();
+
+    assert_eq!(tx.txid(), decoded_transaction.txid);
+    assert_eq!(500_000, decoded_transaction.locktime);
+
+    assert_eq!(decoded_transaction.vin[0].txid.unwrap(), unspent.txid);
+    assert_eq!(decoded_transaction.vout[0].clone().value, btc(1));
+}
+
 fn test_fund_raw_transaction(cl: &Client) {
     let addr = cl.get_new_address(None, None).unwrap();
     let mut output = HashMap::new();
@@ -782,6 +824,40 @@ fn test_wallet_process_psbt(cl: &Client) {
     assert!(res.complete);
 }
 
+fn test_join_psbt(cl: &Client) {
+    let options = json::ListUnspentQueryOptions {
+        minimum_amount: Some(btc(2)),
+        ..Default::default()
+    };
+    let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
+    let unspent1 = unspent[0].clone();
+    let input = json::CreateRawTransactionInput {
+        txid: unspent1.txid,
+        vout: unspent1.vout,
+        sequence: None,
+    };
+    let mut output = HashMap::new();
+    output.insert(RANDOM_ADDRESS.to_string(), btc(1));
+    let psbt1 = cl
+        .wallet_create_funded_psbt(&[input.clone()], &output, Some(500_000), None, Some(true))
+        .unwrap();
+
+    let unspent = unspent.into_iter().nth(1).unwrap();
+    let input2 = json::CreateRawTransactionInput {
+        txid: unspent.txid,
+        vout: unspent.vout,
+        sequence: None,
+    };
+    let mut output2 = HashMap::new();
+    output2.insert(RANDOM_ADDRESS.to_string(), btc(1));
+    let psbt2 = cl
+        .wallet_create_funded_psbt(&[input2.clone()], &output, Some(500_000), None, Some(true))
+        .unwrap();
+
+    let psbt = cl.join_psbt(&[psbt1.psbt, psbt2.psbt]).unwrap();
+    assert!(!psbt.is_empty());
+}
+
 fn test_combine_psbt(cl: &Client) {
     let options = json::ListUnspentQueryOptions {
         minimum_amount: Some(btc(2)),
@@ -802,6 +878,46 @@ fn test_combine_psbt(cl: &Client) {
 
     let psbt = cl.combine_psbt(&[psbt1.psbt.clone(), psbt1.psbt]).unwrap();
     assert!(!psbt.is_empty());
+}
+
+fn test_combine_raw_transaction(cl: &Client) {
+    let options = json::ListUnspentQueryOptions {
+        minimum_amount: Some(btc(2)),
+        ..Default::default()
+    };
+    let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
+    let unspent = unspent.into_iter().nth(0).unwrap();
+    let input = json::CreateRawTransactionInput {
+        txid: unspent.txid,
+        vout: unspent.vout,
+        sequence: None,
+    };
+    let mut output = HashMap::new();
+    output.insert(RANDOM_ADDRESS.to_string(), btc(1));
+    let tx = cl.create_raw_transaction_hex(&[input.clone()], &output, Some(500_000), None).unwrap();
+
+    let transaction = cl.combine_raw_transaction(&[tx.clone(), tx]).unwrap();
+
+    assert!(!transaction.is_empty());
+}
+
+fn test_create_psbt(cl: &Client) {
+    let options = json::ListUnspentQueryOptions {
+        minimum_amount: Some(btc(2)),
+        ..Default::default()
+    };
+    let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
+    let unspent = unspent.into_iter().nth(0).unwrap();
+
+    let input = json::CreateRawTransactionInput {
+        txid: unspent.txid,
+        vout: unspent.vout,
+        sequence: None,
+    };
+    let mut output = HashMap::new();
+    output.insert(RANDOM_ADDRESS.to_string(), btc(1));
+
+    let _ = cl.create_psbt(&[input], &output, Some(500_000), Some(true)).unwrap();
 }
 
 fn test_finalize_psbt(cl: &Client) {
