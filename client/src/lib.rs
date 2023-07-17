@@ -13,7 +13,7 @@
 //! This is a client library for the Bitcoin Core JSON-RPC API.
 //!
 
-#![crate_name = "ord_bitcoincore_rpc"]
+#![crate_name = "bitcoincore_rpc"]
 #![crate_type = "rlib"]
 
 #[macro_use]
