@@ -15,7 +15,7 @@ readme = "README.md"
 edition = "2018"
 
 [lib]
-name = "bitcoincore_rpc"
+name = "ord_bitcoincore_rpc"
 path = "src/lib.rs"
 
 [dependencies]
