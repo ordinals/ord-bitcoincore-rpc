@@ -18,9 +18,9 @@ use std::str::FromStr;
 
 use bitcoin::absolute::LockTime;
 use bitcoin::address::NetworkChecked;
-use bitcoincore_rpc::json;
-use bitcoincore_rpc::jsonrpc::error::Error as JsonRpcError;
-use bitcoincore_rpc::{Auth, Client, Error, RpcApi};
+use ord_bitcoincore_rpc::json;
+use ord_bitcoincore_rpc::jsonrpc::error::Error as JsonRpcError;
+use ord_bitcoincore_rpc::{Auth, Client, Error, RpcApi};
 
 use crate::json::BlockStatsFields as BsFields;
 use bitcoin::consensus::encode::{deserialize, serialize_hex};
@@ -31,7 +31,7 @@ use bitcoin::{
     Address, Amount, Network, OutPoint, PrivateKey,
     Sequence, SignedAmount, Transaction, TxIn, TxOut, Txid, Witness,
 };
-use bitcoincore_rpc::bitcoincore_rpc_json::{
+use ord_bitcoincore_rpc::bitcoincore_rpc_json::{
     GetBlockTemplateModes, GetBlockTemplateRules, ScanTxOutRequest,
 };
 
@@ -112,7 +112,7 @@ fn get_rpc_url() -> String {
     return std::env::var("RPC_URL").expect("RPC_URL must be set");
 }
 
-fn get_auth() -> bitcoincore_rpc::Auth {
+fn get_auth() -> ord_bitcoincore_rpc::Auth {
     if let Ok(cookie) = std::env::var("RPC_COOKIE") {
         return Auth::CookieFile(cookie.into());
     } else if let Ok(user) = std::env::var("RPC_USER") {
