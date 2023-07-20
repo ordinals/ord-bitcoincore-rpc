@@ -29,7 +29,10 @@ use bitcoin::block::Version;
 use bitcoin::consensus::encode;
 use bitcoin::hashes::hex::FromHex;
 use bitcoin::hashes::sha256;
-use bitcoin::{Address, Amount, PrivateKey, PublicKey, SignedAmount, Transaction, ScriptBuf, Script, bip158, bip32};
+use bitcoin::{
+    bip158, bip32, Address, Amount, PrivateKey, PublicKey, Script, ScriptBuf, SignedAmount,
+    Transaction,
+};
 use serde::de::Error as SerdeError;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -51,7 +54,7 @@ pub mod serde_hex {
 
     pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<u8>, D::Error> {
         let hex_str: String = ::serde::Deserialize::deserialize(d)?;
-        Ok(FromHex::from_hex(&hex_str).map_err(D::Error::custom)?)
+        FromHex::from_hex(&hex_str).map_err(D::Error::custom)
     }
 
     pub mod opt {
@@ -659,7 +662,7 @@ impl GetRawTransactionResult {
     }
 
     pub fn transaction(&self) -> Result<Transaction, encode::Error> {
-        Ok(encode::deserialize(&self.hex)?)
+        encode::deserialize(&self.hex)
     }
 }
 
@@ -728,7 +731,7 @@ pub struct GetTransactionResult {
 
 impl GetTransactionResult {
     pub fn transaction(&self) -> Result<Transaction, encode::Error> {
-        Ok(encode::deserialize(&self.hex)?)
+        encode::deserialize(&self.hex)
     }
 }
 
@@ -841,7 +844,7 @@ pub struct SignRawTransactionResult {
 
 impl SignRawTransactionResult {
     pub fn transaction(&self) -> Result<Transaction, encode::Error> {
-        Ok(encode::deserialize(&self.hex)?)
+        encode::deserialize(&self.hex)
     }
 }
 
@@ -1165,7 +1168,7 @@ impl<'a> serde::Serialize for ImportMultiRequestScriptPubkey<'a> {
         S: serde::Serializer,
     {
         match *self {
-            ImportMultiRequestScriptPubkey::Address(ref addr) => {
+            ImportMultiRequestScriptPubkey::Address(addr) => {
                 #[derive(Serialize)]
                 struct Tmp<'a> {
                     pub address: &'a Address,
@@ -1890,10 +1893,7 @@ pub struct FundRawTransactionOptions {
     pub include_watching: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lock_unspents: Option<bool>,
-    #[serde(
-        with = "bitcoin::amount::serde::as_btc::opt",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(with = "bitcoin::amount::serde::as_btc::opt", skip_serializing_if = "Option::is_none")]
     pub fee_rate: Option<Amount>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subtract_fee_from_outputs: Option<Vec<u32>>,
