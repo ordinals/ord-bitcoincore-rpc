@@ -1,6 +1,6 @@
 [package]
 name = "ord-bitcoincore-rpc"
-version = "0.17.0"
+version = "0.17.1"
 authors = [
     "Steven Roose <steven@stevenroose.org>",
     "Jean Pierre Dudey <jeandudey@hotmail.com>",
@@ -19,7 +19,7 @@ name = "bitcoincore_rpc"
 path = "src/lib.rs"
 
 [dependencies]
-ord-bitcoincore-rpc-json = { version = "0.17.0", path = "../json" }
+ord-bitcoincore-rpc-json = { version = "0.17.1", path = "../json" }
 
 log = "0.4.5"
 jsonrpc = "0.14.0"
