@@ -1942,7 +1942,7 @@ impl FundRawTransactionResult {
 }
 
 // Used for signrawtransaction argument.
-#[derive(Serialize, Clone, PartialEq, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SignRawTransactionInput {
     pub txid: bitcoin::Txid,
