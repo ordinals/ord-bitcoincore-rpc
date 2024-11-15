@@ -1,7 +1,3 @@
 [workspace]
-
-members = [
-    "json",
-    "client",
-    "integration_test",
-]
+resolver = "2"
+members = ["client", "integration_test", "json"]
