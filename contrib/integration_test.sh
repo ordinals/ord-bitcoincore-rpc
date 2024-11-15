@@ -4,6 +4,8 @@
 
 set -euo pipefail
 
+BITCOINVERSION="$1"
+
 REPO_DIR=$(git rev-parse --show-toplevel)
 
 # Make all cargo invocations verbose.
