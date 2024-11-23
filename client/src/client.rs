@@ -18,11 +18,8 @@ use std::{fmt, result};
 use crate::bitcoin;
 use crate::bitcoin::consensus::encode;
 use bitcoin::hex::DisplayHex;
-use jsonrpc;
-use serde;
-use serde_json;
 
-use crate::bitcoin::address::{NetworkUnchecked, NetworkChecked};
+use crate::bitcoin::address::{NetworkChecked, NetworkUnchecked};
 use crate::bitcoin::hashes::hex::FromHex;
 use crate::bitcoin::secp256k1::ecdsa::Signature;
 use crate::bitcoin::{
@@ -55,11 +52,11 @@ impl From<OutPoint> for JsonOutPoint {
     }
 }
 
-impl Into<OutPoint> for JsonOutPoint {
-    fn into(self) -> OutPoint {
+impl From<JsonOutPoint> for OutPoint {
+    fn from(outpoint: JsonOutPoint) -> OutPoint {
         OutPoint {
-            txid: self.txid,
-            vout: self.vout,
+            txid: outpoint.txid,
+            vout: outpoint.vout,
         }
     }
 }
@@ -113,9 +110,9 @@ fn empty_obj() -> serde_json::Value {
 ///
 /// Elements of `args` without corresponding `defaults` value, won't
 /// be substituted, because they are required.
-fn handle_defaults<'a, 'b>(
+fn handle_defaults<'a>(
     args: &'a mut [serde_json::Value],
-    defaults: &'b [serde_json::Value],
+    defaults: &[serde_json::Value],
 ) -> &'a [serde_json::Value] {
     assert!(args.len() >= defaults.len());
 
@@ -231,7 +228,7 @@ pub trait RpcApi: Sized {
         &self,
         id: &<T as queryable::Queryable<Self>>::Id,
     ) -> Result<T> {
-        T::query(&self, &id)
+        T::query(self, id)
     }
 
     fn get_network_info(&self) -> Result<json::GetNetworkInfoResult> {
@@ -378,9 +375,9 @@ pub trait RpcApi: Sized {
         self.call(
             "getblocktemplate",
             &[into_json(Argument {
-                mode: mode,
-                rules: rules,
-                capabilities: capabilities,
+                mode,
+                rules,
+                capabilities,
             })?],
         )
     }
@@ -419,7 +416,7 @@ pub trait RpcApi: Sized {
                         type_: json::SoftforkType::Buried,
                         bip9: None,
                         height: None,
-                        active: active,
+                        active,
                     },
                 );
             }
@@ -532,7 +529,7 @@ pub trait RpcApi: Sized {
     }
 
     fn get_balances(&self) -> Result<json::GetBalancesResult> {
-        Ok(self.call("getbalances", &[])?)
+        self.call("getbalances", &[])
     }
 
     fn get_received_by_address(&self, address: &Address, minconf: Option<u32>) -> Result<Amount> {
@@ -670,7 +667,7 @@ pub trait RpcApi: Sized {
         req: &[json::ImportDescriptors],
     ) -> Result<Vec<json::ImportMultiResult>> {
         let json_request = serde_json::to_value(req)?;
-        self.call("importdescriptors", handle_defaults(&mut [json_request.into()], &[null()]))
+        self.call("importdescriptors", handle_defaults(&mut [json_request], &[null()]))
     }
 
     fn set_label(&self, address: &Address, label: &str) -> Result<()> {
@@ -703,18 +700,14 @@ pub trait RpcApi: Sized {
 
     /// To unlock, use [unlock_unspent].
     fn lock_unspent(&self, outputs: &[OutPoint]) -> Result<bool> {
-        let outputs: Vec<_> = outputs
-            .into_iter()
-            .map(|o| serde_json::to_value(JsonOutPoint::from(*o)).unwrap())
-            .collect();
+        let outputs: Vec<_> =
+            outputs.iter().map(|o| serde_json::to_value(JsonOutPoint::from(*o)).unwrap()).collect();
         self.call("lockunspent", &[false.into(), outputs.into()])
     }
 
     fn unlock_unspent(&self, outputs: &[OutPoint]) -> Result<bool> {
-        let outputs: Vec<_> = outputs
-            .into_iter()
-            .map(|o| serde_json::to_value(JsonOutPoint::from(*o)).unwrap())
-            .collect();
+        let outputs: Vec<_> =
+            outputs.iter().map(|o| serde_json::to_value(JsonOutPoint::from(*o)).unwrap()).collect();
         self.call("lockunspent", &[true.into(), outputs.into()])
     }
 
@@ -864,7 +857,7 @@ pub trait RpcApi: Sized {
         rawtxs: &[R],
     ) -> Result<Vec<json::TestMempoolAcceptResult>> {
         let hexes: Vec<serde_json::Value> =
-            rawtxs.to_vec().into_iter().map(|r| r.raw_hex().into()).collect();
+            rawtxs.iter().cloned().map(|r| r.raw_hex().into()).collect();
         self.call("testmempoolaccept", &[hexes.into()])
     }
 
@@ -892,7 +885,10 @@ pub trait RpcApi: Sized {
     }
 
     /// Generate new address for receiving change
-    fn get_raw_change_address(&self, address_type: Option<json::AddressType>) -> Result<Address<NetworkUnchecked>> {
+    fn get_raw_change_address(
+        &self,
+        address_type: Option<json::AddressType>,
+    ) -> Result<Address<NetworkUnchecked>> {
         self.call("getrawchangeaddress", &[opt_into_json(address_type)?])
     }
 
@@ -955,6 +951,7 @@ pub trait RpcApi: Sized {
         self.call("getchaintips", &[])
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn send_to_address(
         &self,
         address: &Address<NetworkChecked>,
@@ -988,22 +985,22 @@ pub trait RpcApi: Sized {
     /// Attempts to add a node to the addnode list.
     /// Nodes added using addnode (or -connect) are protected from DoS disconnection and are not required to be full nodes/support SegWit as other outbound peers are (though such peers will not be synced from).
     fn add_node(&self, addr: &str) -> Result<()> {
-        self.call("addnode", &[into_json(&addr)?, into_json("add")?])
+        self.call("addnode", &[into_json(addr)?, into_json("add")?])
     }
 
     /// Attempts to remove a node from the addnode list.
     fn remove_node(&self, addr: &str) -> Result<()> {
-        self.call("addnode", &[into_json(&addr)?, into_json("remove")?])
+        self.call("addnode", &[into_json(addr)?, into_json("remove")?])
     }
 
     /// Attempts to connect to a node without permanently adding it to the addnode list.
     fn onetry_node(&self, addr: &str) -> Result<()> {
-        self.call("addnode", &[into_json(&addr)?, into_json("onetry")?])
+        self.call("addnode", &[into_json(addr)?, into_json("onetry")?])
     }
 
     /// Immediately disconnects from the specified peer node.
     fn disconnect_node(&self, addr: &str) -> Result<()> {
-        self.call("disconnectnode", &[into_json(&addr)?])
+        self.call("disconnectnode", &[into_json(addr)?])
     }
 
     fn disconnect_node_by_id(&self, node_id: u32) -> Result<()> {
@@ -1013,7 +1010,7 @@ pub trait RpcApi: Sized {
     /// Returns information about the given added node, or all added nodes (note that onetry addnodes are not listed here)
     fn get_added_node_info(&self, node: Option<&str>) -> Result<Vec<json::GetAddedNodeInfoResult>> {
         if let Some(addr) = node {
-            self.call("getaddednodeinfo", &[into_json(&addr)?])
+            self.call("getaddednodeinfo", &[into_json(addr)?])
         } else {
             self.call("getaddednodeinfo", &[])
         }
@@ -1025,7 +1022,7 @@ pub trait RpcApi: Sized {
         count: Option<usize>,
     ) -> Result<Vec<json::GetNodeAddressesResult>> {
         let cnt = count.unwrap_or(1);
-        self.call("getnodeaddresses", &[into_json(&cnt)?])
+        self.call("getnodeaddresses", &[into_json(cnt)?])
     }
 
     /// List all banned IPs/Subnets.
@@ -1042,18 +1039,18 @@ pub trait RpcApi: Sized {
     fn add_ban(&self, subnet: &str, bantime: u64, absolute: bool) -> Result<()> {
         self.call(
             "setban",
-            &[into_json(&subnet)?, into_json("add")?, into_json(&bantime)?, into_json(&absolute)?],
+            &[into_json(subnet)?, into_json("add")?, into_json(bantime)?, into_json(absolute)?],
         )
     }
 
     /// Attempts to remove an IP/Subnet from the banned list.
     fn remove_ban(&self, subnet: &str) -> Result<()> {
-        self.call("setban", &[into_json(&subnet)?, into_json("remove")?])
+        self.call("setban", &[into_json(subnet)?, into_json("remove")?])
     }
 
     /// Disable/enable all p2p network activity.
     fn set_network_active(&self, state: bool) -> Result<bool> {
-        self.call("setnetworkactive", &[into_json(&state)?])
+        self.call("setnetworkactive", &[into_json(state)?])
     }
 
     /// Returns data about each connected network node as an array of
@@ -1129,7 +1126,7 @@ pub trait RpcApi: Sized {
     /// # Arguments
     ///
     /// 1. `timeout`: Time in milliseconds to wait for a response. 0
-    /// indicates no timeout.
+    ///    indicates no timeout.
     fn wait_for_new_block(&self, timeout: u64) -> Result<json::BlockRef> {
         self.call("waitfornewblock", &[into_json(timeout)?])
     }
@@ -1141,7 +1138,7 @@ pub trait RpcApi: Sized {
     ///
     /// 1. `blockhash`: Block hash to wait for.
     /// 2. `timeout`: Time in milliseconds to wait for a response. 0
-    /// indicates no timeout.
+    ///    indicates no timeout.
     fn wait_for_block(
         &self,
         blockhash: &bitcoin::BlockHash,
@@ -1217,7 +1214,11 @@ pub trait RpcApi: Sized {
         self.call("finalizepsbt", handle_defaults(&mut args, &[true.into()]))
     }
 
-    fn derive_addresses(&self, descriptor: &str, range: Option<[u32; 2]>) -> Result<Vec<Address<NetworkUnchecked>>> {
+    fn derive_addresses(
+        &self,
+        descriptor: &str,
+        range: Option<[u32; 2]>,
+    ) -> Result<Vec<Address<NetworkUnchecked>>> {
         let mut args = [into_json(descriptor)?, opt_into_json(range)?];
         self.call("deriveaddresses", handle_defaults(&mut args, &[null()]))
     }
@@ -1283,10 +1284,10 @@ pub trait RpcApi: Sized {
 
     /// Submit a block as a hex string
     fn submit_block_hex(&self, block_hex: &str) -> Result<()> {
-        match self.call("submitblock", &[into_json(&block_hex)?]) {
+        match self.call("submitblock", &[into_json(block_hex)?]) {
             Ok(serde_json::Value::Null) => Ok(()),
             Ok(res) => Err(Error::ReturnedError(res.to_string())),
-            Err(err) => Err(err.into()),
+            Err(err) => Err(err),
         }
     }
 
@@ -1348,7 +1349,7 @@ impl RpcApi for Client {
         args: &[serde_json::Value],
     ) -> Result<T> {
         let raw = serde_json::value::to_raw_value(args)?;
-        let req = self.client.build_request(&cmd, Some(&*raw));
+        let req = self.client.build_request(cmd, Some(&*raw));
         if log_enabled!(Debug) {
             debug!(target: "bitcoincore_rpc", "JSON-RPC request: {} {}", cmd, serde_json::Value::from(args));
         }
@@ -1373,7 +1374,8 @@ fn log_response(cmd: &str, resp: &Result<jsonrpc::Response>) {
                         debug!(target: "bitcoincore_rpc", "JSON-RPC error for {}: {:?}", cmd, e);
                     }
                 } else if log_enabled!(Trace) {
-                    let def = serde_json::value::to_raw_value(&serde_json::value::Value::Null).unwrap();
+                    let def =
+                        serde_json::value::to_raw_value(&serde_json::value::Value::Null).unwrap();
                     let result = resp.result.as_ref().unwrap_or(&def);
                     trace!(target: "bitcoincore_rpc", "JSON-RPC response for {}: {}", cmd, result);
                 }
@@ -1386,12 +1388,11 @@ fn log_response(cmd: &str, resp: &Result<jsonrpc::Response>) {
 mod tests {
     use super::*;
     use crate::bitcoin;
-    use serde_json;
 
     #[test]
     fn test_raw_tx() {
         use crate::bitcoin::consensus::encode;
-        let client = Client::new("http://localhost/".into(), Auth::None).unwrap();
+        let client = Client::new("http://localhost/", Auth::None).unwrap();
         let tx: bitcoin::Transaction = encode::deserialize(&Vec::<u8>::from_hex("0200000001586bd02815cf5faabfec986a4e50d25dbee089bd2758621e61c5fab06c334af0000000006b483045022100e85425f6d7c589972ee061413bcf08dc8c8e589ce37b217535a42af924f0e4d602205c9ba9cb14ef15513c9d946fa1c4b797883e748e8c32171bdf6166583946e35c012103dae30a4d7870cd87b45dd53e6012f71318fdd059c1c2623b8cc73f8af287bb2dfeffffff021dc4260c010000001976a914f602e88b2b5901d8aab15ebe4a97cf92ec6e03b388ac00e1f505000000001976a914687ffeffe8cf4e4c038da46a9b1d37db385a472d88acfd211500").unwrap()).unwrap();
 
         assert!(client.send_raw_transaction(&tx, None, None).is_err());

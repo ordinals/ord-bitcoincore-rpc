@@ -15,23 +15,23 @@
 
 #![crate_name = "bitcoincore_rpc_json"]
 #![crate_type = "rlib"]
-#![allow(deprecated)]           // Because of `GetPeerInfoResultNetwork::Unroutable`.
+#![allow(deprecated)] // Because of `GetPeerInfoResultNetwork::Unroutable`.
 
 pub extern crate bitcoin;
-#[allow(unused)]
-#[macro_use] // `macro_use` is needed for v1.24.0 compilation.
 extern crate serde;
 extern crate serde_json;
 
 use std::collections::HashMap;
-
 
 use bitcoin::address::NetworkUnchecked;
 use bitcoin::block::Version;
 use bitcoin::consensus::encode;
 use bitcoin::hashes::hex::FromHex;
 use bitcoin::hashes::sha256;
-use bitcoin::{Address, Amount, PrivateKey, PublicKey, SignedAmount, Transaction, ScriptBuf, Script, bip158, bip32, Network};
+use bitcoin::{
+    bip158, bip32, Address, Amount, Network, PrivateKey, PublicKey, Script, ScriptBuf,
+    SignedAmount, Transaction,
+};
 use serde::de::Error as SerdeError;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -52,7 +52,7 @@ pub mod serde_hex {
 
     pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<u8>, D::Error> {
         let hex_str: String = ::serde::Deserialize::deserialize(d)?;
-        Ok(FromHex::from_hex(&hex_str).map_err(D::Error::custom)?)
+        FromHex::from_hex(&hex_str).map_err(D::Error::custom)
     }
 
     pub mod opt {
@@ -644,7 +644,7 @@ impl GetRawTransactionResult {
     }
 
     pub fn transaction(&self) -> Result<Transaction, encode::Error> {
-        Ok(encode::deserialize(&self.hex)?)
+        encode::deserialize(&self.hex)
     }
 }
 
@@ -713,7 +713,7 @@ pub struct GetTransactionResult {
 
 impl GetTransactionResult {
     pub fn transaction(&self) -> Result<Transaction, encode::Error> {
-        Ok(encode::deserialize(&self.hex)?)
+        encode::deserialize(&self.hex)
     }
 }
 
@@ -826,7 +826,7 @@ pub struct SignRawTransactionResult {
 
 impl SignRawTransactionResult {
     pub fn transaction(&self) -> Result<Transaction, encode::Error> {
-        Ok(encode::deserialize(&self.hex)?)
+        encode::deserialize(&self.hex)
     }
 }
 
@@ -1008,8 +1008,8 @@ pub struct GetAddressInfoResult {
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(untagged)]
 pub enum StringOrStringArray {
-	String(String),
-	StringArray(Vec<String>),
+    String(String),
+    StringArray(Vec<String>),
 }
 
 /// Models the result of "getblockchaininfo"
@@ -1160,7 +1160,7 @@ impl<'a> serde::Serialize for ImportMultiRequestScriptPubkey<'a> {
         S: serde::Serializer,
     {
         match *self {
-            ImportMultiRequestScriptPubkey::Address(ref addr) => {
+            ImportMultiRequestScriptPubkey::Address(addr) => {
                 #[derive(Serialize)]
                 struct Tmp<'a> {
                     pub address: &'a Address,
@@ -1890,10 +1890,7 @@ pub struct FundRawTransactionOptions {
     /// The fee rate to pay per kvB. NB. This field is converted to camelCase
     /// when serialized, so it is receeived by fundrawtransaction as `feeRate`,
     /// which fee rate per kvB, and *not* `fee_rate`, which is per vB.
-    #[serde(
-        with = "bitcoin::amount::serde::as_btc::opt",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(with = "bitcoin::amount::serde::as_btc::opt", skip_serializing_if = "Option::is_none")]
     pub fee_rate: Option<Amount>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subtract_fee_from_outputs: Option<Vec<u32>>,
@@ -2200,7 +2197,7 @@ where
 
 /// deserialize_bip70_network deserializes a Bitcoin Core network according to BIP70
 /// The accepted input variants are: {"main", "test", "signet", "regtest"}
-fn deserialize_bip70_network<'de, D>(deserializer: D) -> Result<Network, D::Error> 
+fn deserialize_bip70_network<'de, D>(deserializer: D) -> Result<Network, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
@@ -2209,8 +2206,12 @@ where
         type Value = Network;
 
         fn visit_str<E: serde::de::Error>(self, s: &str) -> Result<Self::Value, E> {
-            Network::from_core_arg(s)
-                .map_err(|_| E::invalid_value(serde::de::Unexpected::Str(s), &"bitcoin network encoded as a string"))
+            Network::from_core_arg(s).map_err(|_| {
+                E::invalid_value(
+                    serde::de::Unexpected::Str(s),
+                    &"bitcoin network encoded as a string",
+                )
+            })
         }
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
