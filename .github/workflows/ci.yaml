@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  RUSTFLAGS: --deny warnings
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install Rust Toolchain Components
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: 1.79.0
+
+    - uses: Swatinem/rust-cache@v2
+
+    - name: Unit Tests
+      run: cargo test --all
+
+    - name: Integration Tests
+      env:
+        BITCOINVERSION: 0.21.0
+      run: ./contrib/integration_test.sh
