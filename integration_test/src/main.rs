@@ -109,21 +109,21 @@ fn sbtc<F: Into<f64>>(btc: F) -> SignedAmount {
 }
 
 fn get_testdir() -> String {
-    return std::env::var("TESTDIR").expect("TESTDIR must be set");
+    std::env::var("TESTDIR").expect("TESTDIR must be set")
 }
 
 fn get_rpc_url() -> String {
-    return std::env::var("RPC_URL").expect("RPC_URL must be set");
+    std::env::var("RPC_URL").expect("RPC_URL must be set")
 }
 
 fn get_auth() -> bitcoincore_rpc::Auth {
     if let Ok(cookie) = std::env::var("RPC_COOKIE") {
-        return Auth::CookieFile(cookie.into());
+        Auth::CookieFile(cookie.into())
     } else if let Ok(user) = std::env::var("RPC_USER") {
-        return Auth::UserPass(user, std::env::var("RPC_PASS").unwrap_or_default());
+        Auth::UserPass(user, std::env::var("RPC_PASS").unwrap_or_default())
     } else {
         panic!("Either RPC_COOKIE or RPC_USER + RPC_PASS must be set.");
-    };
+    }
 }
 
 fn new_wallet_client(wallet_name: &str) -> Client {
@@ -393,7 +393,7 @@ fn test_get_address_info(cl: &Client) {
 fn test_set_label(cl: &Client) {
     let addr = cl.get_new_address(Some("label"), None).unwrap().assume_checked();
     let info = cl.get_address_info(&addr).unwrap();
-    if version() >= 0_20_00_00 {
+    if version() >= 20_00_00 {
         assert!(info.label.is_none());
         assert_eq!(info.labels[0], json::GetAddressInfoResultLabel::Simple("label".into()));
     } else {
@@ -409,7 +409,7 @@ fn test_set_label(cl: &Client) {
 
     cl.set_label(&addr, "other").unwrap();
     let info = cl.get_address_info(&addr).unwrap();
-    if version() >= 0_20_00_00 {
+    if version() >= 20_00_00 {
         assert!(info.label.is_none());
         assert_eq!(info.labels[0], json::GetAddressInfoResultLabel::Simple("other".into()));
     } else {
@@ -603,7 +603,7 @@ fn test_sign_raw_transaction_with_send_raw_transaction(cl: &Client) {
         ..Default::default()
     };
     let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
-    let unspent = unspent.into_iter().nth(0).unwrap();
+    let unspent = unspent.into_iter().next().unwrap();
 
     let tx = Transaction {
         version: transaction::Version::ONE,
@@ -639,7 +639,7 @@ fn test_sign_raw_transaction_with_send_raw_transaction(cl: &Client) {
         lock_time: LockTime::ZERO,
         input: vec![TxIn {
             previous_output: OutPoint {
-                txid: txid,
+                txid,
                 vout: 0,
             },
             script_sig: ScriptBuf::new(),
@@ -681,7 +681,7 @@ fn test_create_raw_transaction(cl: &Client) {
         ..Default::default()
     };
     let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
-    let unspent = unspent.into_iter().nth(0).unwrap();
+    let unspent = unspent.into_iter().next().unwrap();
 
     let input = json::CreateRawTransactionInput {
         txid: unspent.txid,
@@ -704,7 +704,7 @@ fn test_decode_raw_transaction(cl: &Client) {
         ..Default::default()
     };
     let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
-    let unspent = unspent.into_iter().nth(0).unwrap();
+    let unspent = unspent.into_iter().next().unwrap();
 
     let input = json::CreateRawTransactionInput {
         txid: unspent.txid,
@@ -773,7 +773,7 @@ fn test_test_mempool_accept(cl: &Client) {
         ..Default::default()
     };
     let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
-    let unspent = unspent.into_iter().nth(0).unwrap();
+    let unspent = unspent.into_iter().next().unwrap();
 
     let input = json::CreateRawTransactionInput {
         txid: unspent.txid,
@@ -801,7 +801,7 @@ fn test_wallet_create_funded_psbt(cl: &Client) {
         ..Default::default()
     };
     let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
-    let unspent = unspent.into_iter().nth(0).unwrap();
+    let unspent = unspent.into_iter().next().unwrap();
 
     let input = json::CreateRawTransactionInput {
         txid: unspent.txid,
@@ -859,7 +859,7 @@ fn test_wallet_process_psbt(cl: &Client) {
         ..Default::default()
     };
     let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
-    let unspent = unspent.into_iter().nth(0).unwrap();
+    let unspent = unspent.into_iter().next().unwrap();
     let input = json::CreateRawTransactionInput {
         txid: unspent.txid,
         vout: unspent.vout,
@@ -915,7 +915,7 @@ fn test_combine_psbt(cl: &Client) {
         ..Default::default()
     };
     let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
-    let unspent = unspent.into_iter().nth(0).unwrap();
+    let unspent = unspent.into_iter().next().unwrap();
     let input = json::CreateRawTransactionInput {
         txid: unspent.txid,
         vout: unspent.vout,
@@ -937,7 +937,7 @@ fn test_combine_raw_transaction(cl: &Client) {
         ..Default::default()
     };
     let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
-    let unspent = unspent.into_iter().nth(0).unwrap();
+    let unspent = unspent.into_iter().next().unwrap();
     let input = json::CreateRawTransactionInput {
         txid: unspent.txid,
         vout: unspent.vout,
@@ -958,7 +958,7 @@ fn test_create_psbt(cl: &Client) {
         ..Default::default()
     };
     let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
-    let unspent = unspent.into_iter().nth(0).unwrap();
+    let unspent = unspent.into_iter().next().unwrap();
 
     let input = json::CreateRawTransactionInput {
         txid: unspent.txid,
@@ -977,7 +977,7 @@ fn test_finalize_psbt(cl: &Client) {
         ..Default::default()
     };
     let unspent = cl.list_unspent(Some(6), None, None, None, Some(options)).unwrap();
-    let unspent = unspent.into_iter().nth(0).unwrap();
+    let unspent = unspent.into_iter().next().unwrap();
     let input = json::CreateRawTransactionInput {
         txid: unspent.txid,
         vout: unspent.vout,
@@ -1036,7 +1036,7 @@ fn test_import_address(cl: &Client) {
         inner: secp256k1::SecretKey::new(&mut secp256k1::rand::thread_rng()),
         compressed: true,
     };
-    let addr = Address::p2pkh(&sk.public_key(&SECP), Network::Regtest);
+    let addr = Address::p2pkh(sk.public_key(&SECP), Network::Regtest);
     cl.import_address(&addr, None, None).unwrap();
     cl.import_address(&addr, Some("l"), None).unwrap();
     cl.import_address(&addr, None, Some(false)).unwrap();
@@ -1048,7 +1048,7 @@ fn test_import_address_script(cl: &Client) {
         inner: secp256k1::SecretKey::new(&mut secp256k1::rand::thread_rng()),
         compressed: true,
     };
-    let addr = Address::p2pkh(&sk.public_key(&SECP), Network::Regtest);
+    let addr = Address::p2pkh(sk.public_key(&SECP), Network::Regtest);
     cl.import_address_script(&addr.script_pubkey(), None, None, None).unwrap();
     cl.import_address_script(&addr.script_pubkey(), Some("l"), None, None).unwrap();
     cl.import_address_script(&addr.script_pubkey(), None, Some(false), None).unwrap();
@@ -1061,7 +1061,7 @@ fn test_estimate_smart_fee(cl: &Client) {
 
     // With a fresh node, we can't get fee estimates.
     if let Some(errors) = res.errors {
-        if errors == &["Insufficient data or no feerate found"] {
+        if errors == ["Insufficient data or no feerate found"] {
             println!("Cannot test estimate_smart_fee because no feerate found!");
             return;
         } else {
@@ -1074,7 +1074,7 @@ fn test_estimate_smart_fee(cl: &Client) {
 }
 
 fn test_ping(cl: &Client) {
-    let _ = cl.ping().unwrap();
+    cl.ping().unwrap();
 }
 
 fn test_get_peer_info(cl: &Client) {
@@ -1187,7 +1187,7 @@ fn test_create_wallet(cl: &Client) {
 
     // Main wallet created for tests
     assert!(loaded_wallet_list.iter().any(|w| w == "testwallet"));
-    loaded_wallet_list.retain(|w| w != "testwallet" && w != "");
+    loaded_wallet_list.retain(|w| w != "testwallet" && w.is_empty());
 
     // Created wallets
     assert!(loaded_wallet_list.iter().zip(wallet_names).all(|(a, b)| a == b));
@@ -1345,7 +1345,7 @@ fn test_wait_for_new_block(cl: &Client) {
     let height = cl.get_block_count().unwrap();
     let hash = cl.get_block_hash(height).unwrap();
 
-    assert!(cl.wait_for_new_block(std::u64::MAX).is_err()); // JSON integer out of range
+    assert!(cl.wait_for_new_block(u64::MAX).is_err()); // JSON integer out of range
     assert_eq!(
         cl.wait_for_new_block(100).unwrap(),
         json::BlockRef {
@@ -1359,7 +1359,7 @@ fn test_wait_for_block(cl: &Client) {
     let height = cl.get_block_count().unwrap();
     let hash = cl.get_block_hash(height).unwrap();
 
-    assert!(cl.wait_for_block(&hash, std::u64::MAX).is_err()); // JSON integer out of range
+    assert!(cl.wait_for_block(&hash, u64::MAX).is_err()); // JSON integer out of range
     assert_eq!(
         cl.wait_for_block(&hash, 0).unwrap(),
         json::BlockRef {
@@ -1377,9 +1377,9 @@ fn test_get_descriptor_info(cl: &Client) {
         res.descriptor,
         r"pkh(02e96fe52ef0e22d2f131dd425ce1893073a3c6ad20e8cac36726393dfb4856a4c)#62k9sn4x"
     );
-    assert_eq!(res.is_range, false);
-    assert_eq!(res.is_solvable, true);
-    assert_eq!(res.has_private_keys, true);
+    assert!(!res.is_range);
+    assert!(res.is_solvable);
+    assert!(res.has_private_keys);
 
     // Checksum introduced in: https://github.com/bitcoin/bitcoin/commit/26d3fad1093dfc697048313be7a96c9adf723654
     if version() >= 190000 {
