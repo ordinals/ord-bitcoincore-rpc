@@ -33,8 +33,7 @@ jobs:
     - name: Test
       run: cargo test --all
 
-  Integration:                  # 1 job for each Bitcoin Core version.
-    name: Integration tests - stable toolchain
+  integration:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -50,11 +49,8 @@ jobs:
             "0.21.0",
           ]
     steps:
-      - name: "Checkout repo"
-        uses: actions/checkout@v4
-      - name: "Select toolchain"
-        uses: dtolnay/rust-toolchain@stable
-      - name: "Run integration tests"
-        env:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - env:
           BITCOINVERSION: ${{ matrix.bitcoinversion }}
         run: ./contrib/integration_test.sh
