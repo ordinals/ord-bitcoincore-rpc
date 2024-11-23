@@ -39,9 +39,7 @@ jobs:
       fail-fast: false
       matrix:
         bitcoinversion:
-          [
-            "24.0.1",
-          ]
+        - "0.21.0"
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
