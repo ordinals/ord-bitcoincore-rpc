@@ -40,7 +40,7 @@ jobs:
       matrix:
         bitcoinversion:
           [
-            "24.0.0",
+            "24.0.1",
           ]
     steps:
       - uses: actions/checkout@v4
