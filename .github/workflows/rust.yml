@@ -12,10 +12,6 @@ jobs:
   Stable:                       # 2 jobs, one per lock file.
     name: Test - stable toolchain
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        dep: [minimal, recent]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
@@ -27,18 +23,12 @@ jobs:
           path: maintainer-tools
       - name: "Select toolchain"
         uses: dtolnay/rust-toolchain@stable
-      - name: "Set dependencies"
-        run: cp Cargo-${{ matrix.dep }}.lock Cargo.lock
       - name: "Run test script"
         run: ./maintainer-tools/ci/run_task.sh stable
 
   Nightly:                      #  2 jobs, one per lock file.
     name: Test - nightly toolchain
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        dep: [minimal, recent]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
@@ -50,18 +40,12 @@ jobs:
           path: maintainer-tools
       - name: "Select toolchain"
         uses: dtolnay/rust-toolchain@nightly
-      - name: "Set dependencies"
-        run: cp Cargo-${{ matrix.dep }}.lock Cargo.lock
       - name: "Run test script"
         run: ./maintainer-tools/ci/run_task.sh nightly
 
   MSRV:          # 2 jobs, one per lock file.
     name: Test - 1.56.1 toolchain
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        dep: [minimal, recent]
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
@@ -75,8 +59,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "1.56.1"
-      - name: "Set dependencies"
-        run: cp Cargo-${{ matrix.dep }}.lock Cargo.lock
       - name: "Run test script"
         run: ./maintainer-tools/ci/run_task.sh msrv
 
