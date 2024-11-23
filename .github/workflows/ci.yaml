@@ -30,19 +30,10 @@ jobs:
 
     - uses: Swatinem/rust-cache@v2
 
-    - name: Test
+    - name: Unit Tests
       run: cargo test --all
 
-  integration:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        bitcoinversion:
-        - 0.21.0
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - env:
-          BITCOINVERSION: ${{ matrix.bitcoinversion }}
-        run: ./contrib/integration_test.sh
+    - name: Integration Tests
+      env:
+        BITCOINVERSION: 0.21.0
+    run: ./contrib/integration_test.sh
