@@ -23,7 +23,7 @@ use crate::bitcoin::address::{NetworkChecked, NetworkUnchecked};
 use crate::bitcoin::hashes::hex::FromHex;
 use crate::bitcoin::secp256k1::ecdsa::Signature;
 use crate::bitcoin::{
-    Address, Amount, Block, OutPoint, PrivateKey, PublicKey, Script, Transaction, FeeRate,
+    Address, Amount, Block, FeeRate, OutPoint, PrivateKey, PublicKey, Script, Transaction,
 };
 use log::Level::{Debug, Trace, Warn};
 
@@ -1092,6 +1092,7 @@ pub trait RpcApi: Sized {
         maxfeerate: Option<FeeRate>,
         maxburnamount: Option<Amount>,
     ) -> Result<bitcoin::Txid> {
+        #[allow(clippy::let_and_return)]
         fn fee_rate_to_btc_per_kvb(fee_rate: FeeRate) -> f64 {
             let sat_per_kwu = fee_rate.to_sat_per_kwu() as f64;
             let sat_per_kvb = sat_per_kwu * 4.0;
@@ -1105,10 +1106,7 @@ pub trait RpcApi: Sized {
             opt_into_json(maxburnamount.map(|amount| amount.to_btc()))?,
         ];
 
-        self.call(
-            "sendrawtransaction",
-            handle_defaults(&mut args, &[null(), null(), null()]),
-        )
+        self.call("sendrawtransaction", handle_defaults(&mut args, &[null(), null(), null()]))
     }
 
     fn estimate_smart_fee(
