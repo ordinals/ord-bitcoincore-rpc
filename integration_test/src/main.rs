@@ -668,35 +668,40 @@ fn test_sign_raw_transaction_with_send_raw_transaction(cl: &Client) {
 }
 
 fn test_send_raw_transaction(cl: &Client) {
-    let tx = Transaction {
-        input: Vec::new(),
-        lock_time: LockTime::ZERO,
-        output: vec![TxOut {
-            value: Amount::from_sat(10),
-            script_pubkey: script::Builder::new()
-                .push_opcode(opcodes::all::OP_RETURN)
-                .into_script(),
-        }],
-        version: transaction::Version::ONE,
-    };
+    if version() > 240000 {
+        let tx = Transaction {
+            input: Vec::new(),
+            lock_time: LockTime::ZERO,
+            output: vec![TxOut {
+                value: Amount::from_sat(10),
+                script_pubkey: script::Builder::new()
+                    .push_opcode(opcodes::all::OP_RETURN)
+                    .into_script(),
+            }],
+            version: transaction::Version::ONE,
+        };
 
-    let mut buffer = Vec::new();
+        let mut buffer = Vec::new();
 
-    {
-        tx.version.consensus_encode(&mut buffer).unwrap();
-        tx.input.consensus_encode(&mut buffer).unwrap();
-        tx.output.consensus_encode(&mut buffer).unwrap();
-        tx.lock_time.consensus_encode(&mut buffer).unwrap();
+        {
+            tx.version.consensus_encode(&mut buffer).unwrap();
+            tx.input.consensus_encode(&mut buffer).unwrap();
+            tx.output.consensus_encode(&mut buffer).unwrap();
+            tx.lock_time.consensus_encode(&mut buffer).unwrap();
+        }
+
+        let tx = cl.fund_raw_transaction(&buffer, None, None).unwrap();
+
+        let signed = cl
+            .sign_raw_transaction_with_wallet(&tx.hex, None, None)
+            .unwrap()
+            .transaction()
+            .unwrap();
+
+        cl.send_raw_transaction(&signed, None).unwrap_err();
+        cl.send_raw_transaction(&signed, Some(Amount::from_sat(9))).unwrap_err();
+        cl.send_raw_transaction(&signed, Some(Amount::from_sat(10))).unwrap();
     }
-
-    let tx = cl.fund_raw_transaction(&buffer, None, None).unwrap();
-
-    let signed =
-        cl.sign_raw_transaction_with_wallet(&tx.hex, None, None).unwrap().transaction().unwrap();
-
-    cl.send_raw_transaction(&signed, None).unwrap_err();
-    cl.send_raw_transaction(&signed, Some(Amount::from_sat(9))).unwrap_err();
-    cl.send_raw_transaction(&signed, Some(Amount::from_sat(10))).unwrap();
 }
 
 fn test_invalidate_block_reconsider_block(cl: &Client) {
