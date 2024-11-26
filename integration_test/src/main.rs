@@ -691,9 +691,12 @@ fn test_send_raw_transaction(cl: &Client) {
 
     let tx = cl.fund_raw_transaction(&buffer, None, None).unwrap();
 
-    cl.send_raw_transaction(&tx.hex, None).unwrap_err();
-    cl.send_raw_transaction(&tx.hex, Some(Amount::from_sat(9))).unwrap_err();
-    cl.send_raw_transaction(&tx.hex, Some(Amount::from_sat(10))).unwrap();
+    let signed =
+        cl.sign_raw_transaction_with_wallet(&tx.hex, None, None).unwrap().transaction().unwrap();
+
+    cl.send_raw_transaction(&signed, None).unwrap_err();
+    cl.send_raw_transaction(&signed, Some(Amount::from_sat(9))).unwrap_err();
+    cl.send_raw_transaction(&signed, Some(Amount::from_sat(10))).unwrap();
 }
 
 fn test_invalidate_block_reconsider_block(cl: &Client) {
