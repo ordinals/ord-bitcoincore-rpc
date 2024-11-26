@@ -56,5 +56,5 @@ jobs:
 
     - name: Integration Tests
       env:
-        BITCOINVERSION: 22.0
+        BITCOINVERSION: '22.0'
       run: ./contrib/integration_test.sh
