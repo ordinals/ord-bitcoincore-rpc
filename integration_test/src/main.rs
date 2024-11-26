@@ -14,7 +14,10 @@ use {
     bitcoin::{
         absolute::LockTime,
         address::{NetworkChecked, NetworkUnchecked},
-        consensus::encode::{deserialize, serialize_hex},
+        consensus::{
+            encode::{deserialize, serialize_hex},
+            Encodable,
+        },
         hashes::{hex::FromHex, Hash},
         opcodes, script, secp256k1, sighash, transaction, Address, Amount, CompressedPublicKey,
         Network, OutPoint, PrivateKey, ScriptBuf, Sequence, SignedAmount, Transaction, TxIn, TxOut,
@@ -677,7 +680,16 @@ fn test_send_raw_transaction(cl: &Client) {
         version: transaction::Version::ONE,
     };
 
-    let tx = cl.fund_raw_transaction(&tx, None, Some(true)).unwrap();
+    let mut buffer = Vec::new();
+
+    {
+        tx.version.consensus_encode(&mut buffer).unwrap();
+        tx.input.consensus_encode(&mut buffer).unwrap();
+        tx.output.consensus_encode(&mut buffer).unwrap();
+        tx.lock_time.consensus_encode(&mut buffer).unwrap();
+    }
+
+    let tx = cl.fund_raw_transaction(&buffer, None, None).unwrap();
 
     cl.send_raw_transaction(&tx.hex, None).unwrap_err();
 }
