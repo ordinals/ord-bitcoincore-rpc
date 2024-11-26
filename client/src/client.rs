@@ -23,7 +23,7 @@ use crate::bitcoin::address::{NetworkChecked, NetworkUnchecked};
 use crate::bitcoin::hashes::hex::FromHex;
 use crate::bitcoin::secp256k1::ecdsa::Signature;
 use crate::bitcoin::{
-    Address, Amount, Block, FeeRate, OutPoint, PrivateKey, PublicKey, Script, Transaction,
+    Address, Amount, Block, OutPoint, PrivateKey, PublicKey, Script, Transaction,
 };
 use log::Level::{Debug, Trace, Warn};
 
@@ -1075,12 +1075,12 @@ pub trait RpcApi: Sized {
 
     // Submit a raw transaction to local node and network.
     //
+    // Note that `maxfeerate` is not supported.
+    //
     // # Arguments
     //
     // 1. `tx`: Transaction to submit
-    // 2. `maxfeerate`: Reject transaction whose fee rate is higher than the
-    //    specified value Available in Bitcoin Core 0.19.0 and later.
-    // 3. `maxburnamount`: Reject transactions with provably unspendable
+    // 2. `maxburnamount`: Reject transactions with provably unspendable
     //    outputs (e.g. 'datacarrier' outputs that use the OP_RETURN opcode)
     //    greater than the specified value, expressed in BTC. If burning funds
     //    through unspendable outputs is desired, increase this value. This
@@ -1089,20 +1089,11 @@ pub trait RpcApi: Sized {
     fn send_raw_transaction<R: RawTx>(
         &self,
         tx: R,
-        maxfeerate: Option<FeeRate>,
         maxburnamount: Option<Amount>,
     ) -> Result<bitcoin::Txid> {
-        #[allow(clippy::let_and_return)]
-        fn fee_rate_to_btc_per_kvb(fee_rate: FeeRate) -> f64 {
-            let sat_per_kwu = fee_rate.to_sat_per_kwu() as f64;
-            let sat_per_kvb = sat_per_kwu * 4.0;
-            let btc_per_kvb = sat_per_kvb / Amount::ONE_BTC.to_sat() as f64;
-            btc_per_kvb
-        }
-
         let mut args = [
             into_json(tx.raw_hex())?,
-            opt_into_json(maxfeerate.map(fee_rate_to_btc_per_kvb))?,
+            null(),
             opt_into_json(maxburnamount.map(|amount| amount.to_btc()))?,
         ];
 
@@ -1393,10 +1384,10 @@ mod tests {
         let client = Client::new("http://localhost/", Auth::None).unwrap();
         let tx: bitcoin::Transaction = encode::deserialize(&Vec::<u8>::from_hex("0200000001586bd02815cf5faabfec986a4e50d25dbee089bd2758621e61c5fab06c334af0000000006b483045022100e85425f6d7c589972ee061413bcf08dc8c8e589ce37b217535a42af924f0e4d602205c9ba9cb14ef15513c9d946fa1c4b797883e748e8c32171bdf6166583946e35c012103dae30a4d7870cd87b45dd53e6012f71318fdd059c1c2623b8cc73f8af287bb2dfeffffff021dc4260c010000001976a914f602e88b2b5901d8aab15ebe4a97cf92ec6e03b388ac00e1f505000000001976a914687ffeffe8cf4e4c038da46a9b1d37db385a472d88acfd211500").unwrap()).unwrap();
 
-        assert!(client.send_raw_transaction(&tx, None, None).is_err());
-        assert!(client.send_raw_transaction(&encode::serialize(&tx), None, None).is_err());
-        assert!(client.send_raw_transaction("deadbeef", None, None).is_err());
-        assert!(client.send_raw_transaction("deadbeef".to_owned(), None, None).is_err());
+        assert!(client.send_raw_transaction(&tx, None).is_err());
+        assert!(client.send_raw_transaction(&encode::serialize(&tx), None).is_err());
+        assert!(client.send_raw_transaction("deadbeef", None).is_err());
+        assert!(client.send_raw_transaction("deadbeef".to_owned(), None).is_err());
     }
 
     fn test_handle_defaults_inner() -> Result<()> {

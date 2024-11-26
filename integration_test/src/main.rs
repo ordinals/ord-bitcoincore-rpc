@@ -16,9 +16,9 @@ use {
         address::{NetworkChecked, NetworkUnchecked},
         consensus::encode::{deserialize, serialize_hex},
         hashes::{hex::FromHex, Hash},
-        secp256k1, sighash, transaction, Address, Amount, CompressedPublicKey, FeeRate, Network,
-        OutPoint, PrivateKey, ScriptBuf, Sequence, SignedAmount, Transaction, TxIn, TxOut, Txid,
-        Witness,
+        opcodes, script, secp256k1, sighash, transaction, Address, Amount, CompressedPublicKey,
+        Network, OutPoint, PrivateKey, ScriptBuf, Sequence, SignedAmount, Transaction, TxIn, TxOut,
+        Txid, Witness,
     },
     bitcoincore_rpc::{
         bitcoincore_rpc_json::{
@@ -632,7 +632,7 @@ fn test_sign_raw_transaction_with_send_raw_transaction(cl: &Client) {
     };
     let res = cl.sign_raw_transaction_with_wallet(&tx, Some(&[input]), None).unwrap();
     assert!(res.complete);
-    let txid = cl.send_raw_transaction(&res.transaction().unwrap(), None, None).unwrap();
+    let txid = cl.send_raw_transaction(&res.transaction().unwrap(), None).unwrap();
 
     let tx = Transaction {
         version: transaction::Version::ONE,
@@ -661,36 +661,25 @@ fn test_sign_raw_transaction_with_send_raw_transaction(cl: &Client) {
         )
         .unwrap();
     assert!(res.complete);
-    let _ = cl.send_raw_transaction(&res.transaction().unwrap(), None, None).unwrap();
+    let _ = cl.send_raw_transaction(&res.transaction().unwrap(), None).unwrap();
 }
 
 fn test_send_raw_transaction(cl: &Client) {
-    // todo:
-    // - create transaction with fee that's too high
-    // - reject transaction if fee is too high
-    // - accept with maxfeerate set
-    // - reject transaction with burn
-    // - accept with maxburnamount set
-    // - create transaction with high fee?
-
-    let output = [(RANDOM_ADDRESS.to_string(), btc(1))].into();
-
-    let tx = cl.create_raw_transaction_hex(&[], &output, None, None).unwrap();
-
-    let options = json::FundRawTransactionOptions {
-        fee_rate: Some(Amount::from_btc(1.0).unwrap()),
-        ..json::FundRawTransactionOptions::default()
+    let tx = Transaction {
+        input: Vec::new(),
+        lock_time: LockTime::ZERO,
+        output: vec![TxOut {
+            value: Amount::from_sat(10),
+            script_pubkey: script::Builder::new()
+                .push_opcode(opcodes::all::OP_RETURN)
+                .into_script(),
+        }],
+        version: transaction::Version::ONE,
     };
 
-    let funded = cl.fund_raw_transaction(tx, Some(&options), None).unwrap();
+    let tx = cl.fund_raw_transaction(&tx, None, None).unwrap();
 
-    cl.send_raw_transaction(&funded.hex, None, None).unwrap_err();
-    cl.send_raw_transaction(
-        &funded.hex,
-        Some(FeeRate::from_sat_per_vb(100_000_000).unwrap()),
-        None,
-    )
-    .unwrap_err();
+    cl.send_raw_transaction(&tx.hex, None).unwrap_err();
 }
 
 fn test_invalidate_block_reconsider_block(cl: &Client) {
