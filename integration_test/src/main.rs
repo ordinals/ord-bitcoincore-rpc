@@ -10,29 +10,28 @@
 
 #![deny(unused)]
 
-#[macro_use]
-extern crate lazy_static;
-
-use std::collections::HashMap;
-use std::str::FromStr;
-
-use bitcoin::absolute::LockTime;
-use bitcoin::address::{NetworkChecked, NetworkUnchecked};
-use bitcoincore_rpc::json;
-use bitcoincore_rpc::jsonrpc::error::Error as JsonRpcError;
-use bitcoincore_rpc::{Auth, Client, Error, RpcApi};
-
-use crate::json::BlockStatsFields as BsFields;
-use bitcoin::consensus::encode::{deserialize, serialize_hex};
-use bitcoin::hashes::hex::FromHex;
-use bitcoin::hashes::Hash;
-use bitcoin::{secp256k1, sighash, ScriptBuf};
-use bitcoin::{
-    transaction, Address, Amount, CompressedPublicKey, Network, OutPoint, PrivateKey, Sequence,
-    SignedAmount, Transaction, TxIn, TxOut, Txid, Witness,
-};
-use bitcoincore_rpc::bitcoincore_rpc_json::{
-    GetBlockTemplateModes, GetBlockTemplateRules, GetZmqNotificationsResult, ScanTxOutRequest,
+use {
+    bitcoin::{
+        absolute::LockTime,
+        address::{NetworkChecked, NetworkUnchecked},
+        consensus::encode::{deserialize, serialize_hex},
+        hashes::{hex::FromHex, Hash},
+        secp256k1, sighash, transaction, Address, Amount, CompressedPublicKey, FeeRate, Network,
+        OutPoint, PrivateKey, ScriptBuf, Sequence, SignedAmount, Transaction, TxIn, TxOut, Txid,
+        Witness,
+    },
+    bitcoincore_rpc::{
+        bitcoincore_rpc_json::{
+            GetBlockTemplateModes, GetBlockTemplateRules, GetZmqNotificationsResult,
+            ScanTxOutRequest,
+        },
+        json,
+        jsonrpc::error::Error as JsonRpcError,
+        Auth, Client, Error, RpcApi,
+    },
+    json::BlockStatsFields as BsFields,
+    lazy_static::lazy_static,
+    std::{collections::HashMap, str::FromStr},
 };
 
 lazy_static! {
@@ -176,6 +175,7 @@ fn main() {
     test_lock_unspent_unlock_unspent(&cl);
     test_get_block_filter(&cl);
     test_sign_raw_transaction_with_send_raw_transaction(&cl);
+    test_send_raw_transaction(&cl);
     test_invalidate_block_reconsider_block(&cl);
     test_key_pool_refill(&cl);
     test_create_raw_transaction(&cl);
@@ -662,6 +662,35 @@ fn test_sign_raw_transaction_with_send_raw_transaction(cl: &Client) {
         .unwrap();
     assert!(res.complete);
     let _ = cl.send_raw_transaction(&res.transaction().unwrap(), None, None).unwrap();
+}
+
+fn test_send_raw_transaction(cl: &Client) {
+    // todo:
+    // - create transaction with fee that's too high
+    // - reject transaction if fee is too high
+    // - accept with maxfeerate set
+    // - reject transaction with burn
+    // - accept with maxburnamount set
+    // - create transaction with high fee?
+
+    let output = [(RANDOM_ADDRESS.to_string(), btc(1))].into();
+
+    let tx = cl.create_raw_transaction_hex(&[], &output, None, None).unwrap();
+
+    let options = json::FundRawTransactionOptions {
+        fee_rate: Some(Amount::from_btc(1.0).unwrap()),
+        ..json::FundRawTransactionOptions::default()
+    };
+
+    let funded = cl.fund_raw_transaction(tx, Some(&options), None).unwrap();
+
+    cl.send_raw_transaction(&funded.hex, None, None).unwrap_err();
+    cl.send_raw_transaction(
+        &funded.hex,
+        Some(FeeRate::from_sat_per_vb(100_000_000).unwrap()),
+        None,
+    )
+    .unwrap_err();
 }
 
 fn test_invalidate_block_reconsider_block(cl: &Client) {
