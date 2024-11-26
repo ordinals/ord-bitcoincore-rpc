@@ -677,7 +677,7 @@ fn test_send_raw_transaction(cl: &Client) {
         version: transaction::Version::ONE,
     };
 
-    let tx = cl.fund_raw_transaction(&tx, None, Some(false)).unwrap();
+    let tx = cl.fund_raw_transaction(&tx, None, Some(true)).unwrap();
 
     cl.send_raw_transaction(&tx.hex, None).unwrap_err();
 }
